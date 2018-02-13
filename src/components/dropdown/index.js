@@ -61,6 +61,9 @@ export default class Dropdown extends PureComponent {
 
     labelHeight: 32,
 
+    fixedItem: false,
+    fixedItemLabel: null,
+
     supportedOrientations: [
       'portrait',
       'portrait-upside-down',
@@ -96,6 +99,12 @@ export default class Dropdown extends PureComponent {
 
     rippleCentered: PropTypes.bool,
     rippleSequential: PropTypes.bool,
+
+    fixedItem: PropTypes.bool,
+    fixedItemLabel: PropTypes.string,
+    fixedItemColor: PropTypes.string,
+    fixedItemBackgroundColor: PropTypes.string,
+    onFixedItemPress: PropTypes.func,
 
     rippleInsets: PropTypes.shape({
       top: PropTypes.number,
@@ -142,6 +151,7 @@ export default class Dropdown extends PureComponent {
     this.onPress = this.onPress.bind(this);
     this.onClose = this.onClose.bind(this);
     this.onSelect = this.onSelect.bind(this);
+    this.onFixedItemPress = this.onFixedItemPress.bind(this);
     this.onLayout = this.onLayout.bind(this);
     this.updateRippleRef = this.updateRef.bind(this, 'ripple');
     this.updateContainerRef = this.updateRef.bind(this, 'container');
@@ -195,7 +205,7 @@ export default class Dropdown extends PureComponent {
       return;
     }
 
-    let itemCount = data.length;
+    let itemCount = this.itemCount();
     let visibleItemCount = this.visibleItemCount();
     let tailItemCount = this.tailItemCount();
     let timestamp = Date.now();
@@ -355,6 +365,16 @@ export default class Dropdown extends PureComponent {
     setTimeout(this.onClose, animationDuration);
   }
 
+  onFixedItemPress() {
+    let { onFixedItemPress, animationDuration } = this.props;
+
+    if ('function' === typeof onFixedItemPress) {
+      onFixedItemPress();
+    }
+
+    setTimeout(this.onClose, animationDuration);
+  }
+
   onLayout(event) {
     let { onLayout } = this.props;
 
@@ -393,10 +413,16 @@ export default class Dropdown extends PureComponent {
     return fontSize * 1.5 + itemPadding * 2;
   }
 
+  itemCount() {
+    let { data, fixedItem } = this.props;
+
+    return fixedItem ? data.length + 1 : data.length;
+  }
+
   visibleItemCount() {
     let { data, itemCount } = this.props;
 
-    return Math.min(data.length, itemCount);
+    return Math.min(this.itemCount(), itemCount);
   }
 
   tailItemCount() {
@@ -501,6 +527,23 @@ export default class Dropdown extends PureComponent {
     );
   }
 
+  renderFixedItem(props){
+    let { fixedItem, fixedItemLabel, fixedItemBackgroundColor } = this.props;
+    let { itemCount, itemColor: color, fontSize, itemTextStyle } = props;
+
+    let style = { color, fontSize };
+
+    if (fixedItem && fixedItemLabel !== undefined) {
+      return (
+        <DropdownItem index={itemCount} key={itemCount} color={fixedItemBackgroundColor} {...props} onPress={this.onFixedItemPress}>
+            <Text style={[styles.item, itemTextStyle, style]} numberOfLines={1}>
+              {fixedItemLabel}
+            </Text>
+        </DropdownItem>
+      );
+    }
+  }
+
   renderItems() {
     let { selected, leftInset, rightInset } = this.state;
 
@@ -526,6 +569,7 @@ export default class Dropdown extends PureComponent {
       rippleOpacity,
       shadeOpacity,
       onPress: this.onSelect,
+      itemCount: data.length,
       style: {
         height: this.itemSize(),
         paddingLeft: leftInset,
@@ -533,7 +577,7 @@ export default class Dropdown extends PureComponent {
       },
     };
 
-    return data
+    const items =  data
       .map((item, index) => {
         if (null == item) {
           return null;
@@ -562,6 +606,13 @@ export default class Dropdown extends PureComponent {
           </DropdownItem>
         );
       });
+
+      return (
+        <React.Fragment>
+            {items}
+            {this.renderFixedItem(props)}
+        </React.Fragment>
+        );
   }
 
   render() {
@@ -599,7 +650,7 @@ export default class Dropdown extends PureComponent {
 
     let dimensions = Dimensions.get('window');
 
-    let itemCount = data.length;
+    let itemCount = this.itemCount();
     let visibleItemCount = this.visibleItemCount();
     let tailItemCount = this.tailItemCount();
     let itemSize = this.itemSize();
